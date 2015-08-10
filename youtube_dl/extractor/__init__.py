@@ -274,6 +274,10 @@ from .keek import KeekIE
 from .kontrtube import KontrTubeIE
 from .krasview import KrasViewIE
 from .ku6 import Ku6IE
+from .kugou import (
+    KugouIE,
+    KugouSearchIE,
+)
 from .kuwo import (
     KuwoIE,
     KuwoAlbumIE,
@@ -281,6 +285,7 @@ from .kuwo import (
     KuwoSingerIE,
     KuwoCategoryIE,
     KuwoMvIE,
+    KuwoSearchIE,
 )
 from .la7 import LA7IE
 from .laola1tv import Laola1TvIE
@@ -471,6 +476,7 @@ from .qqmusic import (
     QQMusicAlbumIE,
     QQMusicToplistIE,
     QQMusicPlaylistIE,
+    QQMusicSearchIE,
 )
 from .quickvid import QuickVidIE
 from .r7 import R7IE

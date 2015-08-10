@@ -1,10 +1,12 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
-import re
+import ast
 import itertools
+import re
 
-from .common import InfoExtractor
+from .common import InfoExtractor, SearchInfoExtractor
+from ..compat import compat_urllib_parse
 from ..utils import (
     get_element_by_id,
     clean_html,
@@ -312,3 +314,57 @@ class KuwoMvIE(KuwoBaseIE):
             'creator': singer_name,
             'formats': formats,
         }
+
+
+class KuwoSearchIE(SearchInfoExtractor):
+    IE_NAME = 'kuwo:search'
+    IE_DESC = '酷我搜索'
+
+    _SEARCH_KEY = 'kwsearch'
+    _MAX_RESULTS = float('inf')
+    _EXTRA_QUERY_ARGS = {
+        'rformat': 'json',
+        'encoding': 'utf8',
+    }
+
+    def _get_n_results(self, query, n):
+        videos = []
+        limit = n
+
+        for pagenum in itertools.count(0):
+            url_query = {
+                'all': query.encode('utf-8'),
+                'pn': pagenum,
+                'rn': 10,
+            }
+            url_query.update(self._EXTRA_QUERY_ARGS)
+            result_url = 'http://search.kuwo.cn/r.s?' + compat_urllib_parse.urlencode(url_query)
+            data = ast.literal_eval(self._download_webpage(
+                result_url, video_id='query "%s"' % query,
+                note='Downloading page %s' % pagenum,
+                errnote='Unable to download API page'))
+
+            if not data['abslist']:
+                raise ExtractorError('[kuwo] No video results', expected=True)
+
+            new_videos = [
+                {
+                    '_type': 'url_transparent',
+                    'url': 'http://www.kuwo.cn/yinyue/{}/'.format(song['MUSICRID'].split('_')[-1]),
+                    'ie_key': 'Kuwo',
+                    'duration': int(song['DURATION']),
+                    'creator': song['ARTIST'],
+                    'uploader': 'kuwo',
+                    'album': song['ALBUM'],
+                } for song in data['abslist']
+            ]
+
+            videos += new_videos
+            if not new_videos or len(videos) >= limit:
+                break
+
+        if len(videos) > n:
+            videos = videos[:n]
+
+        return self.playlist_result(videos, query)
+

@@ -1,17 +1,21 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import itertools
 import random
-import time
 import re
+import time
 
-from .common import InfoExtractor
+from .common import InfoExtractor, SearchInfoExtractor
 from ..utils import (
     strip_jsonp,
     unescapeHTML,
     clean_html,
 )
-from ..compat import compat_urllib_request
+from ..compat import (
+    compat_urllib_parse,
+    compat_urllib_request,
+)
 
 
 class QQMusicIE(InfoExtractor):
@@ -315,3 +319,60 @@ class QQMusicPlaylistIE(QQPlaylistBaseIE):
         list_name = list_json.get('dissname')
         list_description = clean_html(unescapeHTML(list_json.get('desc')))
         return self.playlist_result(entries, list_id, list_name, list_description)
+
+
+class QQMusicSearchIE(SearchInfoExtractor):
+    IE_NAME = 'qqmusic:search'
+    IE_DESC = 'QQ音乐搜索'
+
+    _SEARCH_KEY = 'qmsearch'
+    _MAX_RESULTS = float('inf')
+    _EXTRA_QUERY_ARGS = {
+        'format': 'json',
+        'inCharset': 'utf-8',
+        'outCharset': 'utf-8',
+    }
+
+    def _get_n_results(self, query, n):
+        videos = []
+        limit = n
+
+        for pagenum in itertools.count(1):
+            url_query = {
+                'w': query.encode('utf-8'),
+                'p': pagenum,
+                'n': 30,
+            }
+            url_query.update(self._EXTRA_QUERY_ARGS)
+            result_url = 'http://soso.music.qq.com/fcgi-bin/search_cp?' + compat_urllib_parse.urlencode(url_query)
+    
+            data = self._download_json(
+                result_url, video_id='query "%s"' % query,
+                note='Downloading page %s' % pagenum,
+                errnote='Unable to download API page')
+
+            if not (data['code'] == 0 and data['data']['song']['list']):
+                raise ExtractorError('[qqmusic] No video results', expected=True)
+
+            new_videos = [
+                {
+                    '_type': 'url_transparent',
+                    'url': 'http://y.qq.com/#type=song&mid=' + song['songmid'],
+                    'ie_key': 'QQMusic',
+                    'title': song['songname'],
+                    'album': song['albumname'],
+                    'duration': song['interval'],
+                    'creator': ', '.join([i['name'] for i in song['singer']]),
+                    'uploader': 'qqmusic',
+                } for song in data['data']['song']['list']
+            ]
+
+            videos += new_videos
+            if not new_videos or len(videos) >= limit:
+                break
+
+        if len(videos) > n:
+            videos = videos[:n]
+
+        return self.playlist_result(videos, query)
+

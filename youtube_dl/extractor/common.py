@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import base64
 import datetime
+import functools
 import hashlib
 import json
 import netrc
@@ -279,6 +280,7 @@ class InfoExtractor(object):
             self._real_initialize()
             self._ready = True
 
+    @functools.lru_cache(maxsize=999999)
     def extract(self, url):
         """Extracts URL information and returns it in list of dicts."""
         try:
